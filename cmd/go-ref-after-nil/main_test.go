@@ -26,7 +26,15 @@ exit status 1
 	} else if ws.ExitStatus() != 1 {
 		t.Errorf("expected %q to have exit status 1, got %d", cmd.Args, ws.ExitStatus())
 	}
-	if strings.TrimSpace(expectedOutput) != strings.TrimSpace(string(out)) {
+	if e, o := strings.TrimSpace(expectedOutput), strings.TrimSpace(string(out)); e != o {
 		t.Error("output differs from expected")
+		for i := 0; i < len(e) && i < len(o); i++ {
+			if e[i] != o[i] {
+				line := len(strings.Split(e[:i], "\n"))
+				col := i - strings.LastIndex(e[:i], "\n")
+				t.Logf("diff start at line %d, column %d, expected %q, got %q", line, col, e[i], o[i])
+				break
+			}
+		}
 	}
 }

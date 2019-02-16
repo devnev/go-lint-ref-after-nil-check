@@ -9,6 +9,7 @@ import (
 	"go/token"
 	"log"
 	"os"
+	"sort"
 )
 
 var verbose = flag.Bool("verbose", false, "If set, print every file as it is checked.")
@@ -27,11 +28,18 @@ func main() {
 			if err != nil {
 				log.Fatalf("Failed to parse %s: %v", path, err)
 			}
+			var files []*ast.File
 			for _, pkg := range pkgs {
 				for _, file := range pkg.Files {
-					if checkFile(fset, file) {
-						haveFails = true
-					}
+					files = append(files, file)
+				}
+			}
+			sort.Slice(files, func(i, j int) bool {
+				return fset.Position(files[i].Pos()).Filename < fset.Position(files[j].Pos()).Filename
+			})
+			for _, file := range files {
+				if checkFile(fset, file) {
+					haveFails = true
 				}
 			}
 		} else {
