@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"go-err-after-nil"
+	"github.com/devnev/go-err-after-nil"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -63,7 +63,7 @@ func checkFile(fset *token.FileSet, file *ast.File) bool {
 	fails := nilref.Check(file)
 	for _, fail := range fails {
 		pos := fset.Position(fail.Pos())
-		fmt.Printf("Reference after nil check at %s", pos.String())
+		fmt.Printf("Reference after nil check at %s\n", pos.String())
 	}
 	return len(fails) > 0
 }
