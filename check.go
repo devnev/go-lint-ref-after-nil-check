@@ -5,14 +5,14 @@ import (
 	"go/token"
 )
 
-func Check(f *ast.File) []ast.Stmt {
+func Check(f *ast.File) []ast.Node {
 	var c checkVisitor
 	ast.Walk(&c, f)
 	return c.failures
 }
 
 type checkVisitor struct {
-	failures []ast.Stmt
+	failures []ast.Node
 }
 
 func (v *checkVisitor) Visit(node ast.Node) ast.Visitor {
@@ -87,7 +87,7 @@ func isTerminal(block []ast.Stmt) bool {
 	return hasReturn
 }
 
-func checkForRefs(obj *ast.Object, block []ast.Stmt) ast.Stmt {
+func checkForRefs(obj *ast.Object, block []ast.Stmt) ast.Node {
 	for _, s := range block {
 		written := writeVisitor{
 			tgt: obj,
@@ -100,8 +100,8 @@ func checkForRefs(obj *ast.Object, block []ast.Stmt) ast.Stmt {
 			tgt: obj,
 		}
 		ast.Walk(&referenced, s)
-		if referenced.referenced {
-			return s
+		if referenced.ref != nil {
+			return referenced.ref
 		}
 	}
 	return nil
@@ -147,12 +147,12 @@ func (v *writeVisitor) Visit(node ast.Node) ast.Visitor {
 }
 
 type refVisitor struct {
-	tgt        *ast.Object
-	referenced bool
+	tgt *ast.Object
+	ref ast.Node
 }
 
 func (v *refVisitor) Visit(node ast.Node) ast.Visitor {
-	if node == nil || v.referenced {
+	if node == nil || v.ref != nil {
 		return nil
 	}
 	id, ok := node.(*ast.Ident)
@@ -160,7 +160,7 @@ func (v *refVisitor) Visit(node ast.Node) ast.Visitor {
 		return v
 	}
 	if id.Obj == v.tgt {
-		v.referenced = true
+		v.ref = node
 	}
 	return v
 }
