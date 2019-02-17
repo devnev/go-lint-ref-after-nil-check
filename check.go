@@ -37,8 +37,8 @@ func (v *checkVisitor) Visit(node ast.Node) ast.Visitor {
 			remainder = append(remainder, cond.Else)
 		}
 		remainder = append(remainder, block.List[idx+1:]...)
-		if stmt := checkForRefs(errObj, remainder); stmt != nil {
-			v.failures = append(v.failures, stmt)
+		if refs := checkForRefs(errObj, remainder); refs != nil {
+			v.failures = append(v.failures, refs...)
 		}
 	}
 	return v
@@ -87,24 +87,22 @@ func isTerminal(block []ast.Stmt) bool {
 	return hasReturn
 }
 
-func checkForRefs(obj *ast.Object, block []ast.Stmt) ast.Node {
+func checkForRefs(obj *ast.Object, block []ast.Stmt) (refs []ast.Node) {
 	for _, s := range block {
 		written := writeVisitor{
 			tgt: obj,
 		}
 		ast.Walk(&written, s)
 		if written.written {
-			return nil
+			return refs
 		}
 		referenced := refVisitor{
 			tgt: obj,
 		}
 		ast.Walk(&referenced, s)
-		if referenced.ref != nil {
-			return referenced.ref
-		}
+		refs = append(refs, referenced.refs...)
 	}
-	return nil
+	return refs
 }
 
 type writeVisitor struct {
@@ -148,11 +146,11 @@ func (v *writeVisitor) Visit(node ast.Node) ast.Visitor {
 
 type refVisitor struct {
 	tgt *ast.Object
-	ref ast.Node
+	refs []ast.Node
 }
 
 func (v *refVisitor) Visit(node ast.Node) ast.Visitor {
-	if node == nil || v.ref != nil {
+	if node == nil {
 		return nil
 	}
 	id, ok := node.(*ast.Ident)
@@ -160,7 +158,7 @@ func (v *refVisitor) Visit(node ast.Node) ast.Visitor {
 		return v
 	}
 	if id.Obj == v.tgt {
-		v.ref = node
+		v.refs = append(v.refs, node)
 	}
 	return v
 }

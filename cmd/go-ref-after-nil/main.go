@@ -27,7 +27,7 @@ func main() {
 		}
 		fset := token.NewFileSet()
 		if inf.IsDir() {
-			pkgs, err := parser.ParseDir(fset, path, nil, 0)
+			pkgs, err := parser.ParseDir(fset, path, nil, parser.ParseComments)
 			if err != nil {
 				log.Fatalf("Failed to parse %s: %v", path, err)
 			}
@@ -46,7 +46,7 @@ func main() {
 				}
 			}
 		} else {
-			file, err := parser.ParseFile(fset, path, nil, 0)
+			file, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
 			if err != nil {
 				log.Fatalf("Failed to parse %s: %v", path, err)
 			}
@@ -71,15 +71,32 @@ func checkFile(fset *token.FileSet, file *ast.File) bool {
 	if *verbose {
 		log.Printf("Checking %s", fset.Position(file.Pos()).Filename)
 	}
+
+	skipLines := map[int]struct{}{}
+	for _, cg := range file.Comments {
+		last := cg.List[len(cg.List)-1]
+		if last.Text == "// nolint" {
+			pos := fset.Position(last.Pos())
+			skipLines[pos.Line+1] = struct{}{}
+		}
+	}
+
 	fails := nilref.Check(file)
+	lastFile, lastLine := "", -1
 	for _, fail := range fails {
 		pos := fset.Position(fail.Pos())
+		if _, ok := skipLines[pos.Line]; ok {
+			continue
+		}
 		if *machine {
 			fmt.Println(pos.String())
-		} else {
-			fmt.Printf("Reference after nil check at %s\n", pos.String())
-			printSource(fset, pos)
+			continue
 		}
+		if lastFile == pos.Filename && lastLine == pos.Line {
+			continue
+		}
+		fmt.Printf("Reference after nil check at %s\n", pos.String())
+		printSource(fset, pos)
 	}
 	return len(fails) > 0
 }
