@@ -9,11 +9,11 @@ import (
 
 func TestCmd(t *testing.T) {
 	const expectedOutput = `
-Reference after nil check at ../../testdata/bad_conditional_print_nil_err.go:11:2
-	if !expected {
-Reference after nil check at ../../testdata/bad_print_nil_err.go:10:2
+Reference after nil check at ../../testdata/bad_conditional_print_nil_err.go:12:15
+		fmt.Println(err)
+Reference after nil check at ../../testdata/bad_print_nil_err.go:10:14
 	fmt.Println(err)
-Reference after nil check at ../../testdata/bad_return_nil_err.go:8:2
+Reference after nil check at ../../testdata/bad_return_nil_err.go:8:9
 	return err
 exit status 1
 `
@@ -34,9 +34,9 @@ exit status 1
 
 func TestCmd_machineOutput(t *testing.T) {
 	const expectedOutput = `
-../../testdata/bad_conditional_print_nil_err.go:11:2
-../../testdata/bad_print_nil_err.go:10:2
-../../testdata/bad_return_nil_err.go:8:2
+../../testdata/bad_conditional_print_nil_err.go:12:15
+../../testdata/bad_print_nil_err.go:10:14
+../../testdata/bad_return_nil_err.go:8:9
 exit status 1
 `
 	cmd := exec.Command("go", "run", "main.go", "-machine", "../../testdata")
