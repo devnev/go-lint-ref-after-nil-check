@@ -7,12 +7,15 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"io"
 	"log"
 	"os"
 	"sort"
+	"strings"
 )
 
 var verbose = flag.Bool("verbose", false, "If set, print every file as it is checked.")
+var machine = flag.Bool("machine", false, "If set, limit output to machine-readable file:line:col format.")
 
 func main() {
 	flag.Parse()
@@ -71,7 +74,38 @@ func checkFile(fset *token.FileSet, file *ast.File) bool {
 	fails := nilref.Check(file)
 	for _, fail := range fails {
 		pos := fset.Position(fail.Pos())
-		fmt.Printf("Reference after nil check at %s\n", pos.String())
+		if *machine {
+			fmt.Println(pos.String())
+		} else {
+			fmt.Printf("Reference after nil check at %s\n", pos.String())
+			printSource(fset, pos)
+		}
 	}
 	return len(fails) > 0
+}
+
+func printSource(fset *token.FileSet, pos token.Position) {
+	f, err := os.Open(pos.Filename)
+	if err != nil {
+		log.Printf("Failed to re-open source for %s: %s", pos.Filename, err.Error())
+		return
+	}
+	start := pos.Offset - 1024
+	if start < 0 {
+		start = 0
+	}
+	buf := make([]byte, 4*1024)
+	n, err := f.ReadAt(buf, int64(start))
+	if err != nil && err != io.EOF {
+		log.Printf("Failed to re-read source for %s: %s", pos.Filename, err.Error())
+		return
+	}
+	buf = buf[:n]
+	lineStart := strings.LastIndex(string(buf[:pos.Offset-start]), "\n")
+	lineEnd := strings.Index(string(buf[pos.Offset-start:]), "\n")
+	if lineEnd > 0 {
+		buf = buf[:pos.Offset-start+lineEnd]
+	}
+	buf = buf[lineStart+1:]
+	fmt.Println(string(buf))
 }
