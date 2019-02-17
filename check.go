@@ -66,6 +66,9 @@ func isNilCheck(ifStmt *ast.IfStmt) *ast.Object {
 	if varExpr.Name == "nil" {
 		nilExpr, varExpr = varExpr, nilExpr
 	}
+	if nilExpr.Name != "nil" {
+		return nil
+	}
 	if nilExpr.Obj != nil {
 		panic("nil expr " + nilExpr.Name + " has object")
 	}
