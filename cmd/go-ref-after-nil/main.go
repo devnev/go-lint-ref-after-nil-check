@@ -16,6 +16,7 @@ import (
 
 var verbose = flag.Bool("verbose", false, "If set, print every file as it is checked.")
 var machine = flag.Bool("machine", false, "If set, limit output to machine-readable file:line:col format.")
+var exit = flag.Bool("exit-code", false, "If set, exit with code 2 if there were failures. Exit 0 by default.")
 
 func main() {
 	flag.Parse()
@@ -62,8 +63,8 @@ func main() {
 			log.Printf("Checks passed on all inputs.")
 		}
 	}
-	if haveFails {
-		os.Exit(1)
+	if haveFails && *exit {
+		os.Exit(2)
 	}
 }
 
