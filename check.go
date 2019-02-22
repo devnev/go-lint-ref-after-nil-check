@@ -5,14 +5,21 @@ import (
 	"go/token"
 )
 
-func Check(f *ast.File) []ast.Node {
+func Check(f *ast.File) []*ast.Ident {
 	var c checkVisitor
 	ast.Walk(&c, f)
 	return c.failures
 }
 
+func Fix(failures []*ast.Ident) {
+	for _, fail := range failures {
+		fail.Name = "nil"
+		fail.Obj = nil
+	}
+}
+
 type checkVisitor struct {
-	failures []ast.Node
+	failures []*ast.Ident
 }
 
 func (v *checkVisitor) Visit(node ast.Node) ast.Visitor {
@@ -87,7 +94,7 @@ func isTerminal(block []ast.Stmt) bool {
 	return hasReturn
 }
 
-func checkForRefs(obj *ast.Object, block []ast.Stmt) (refs []ast.Node) {
+func checkForRefs(obj *ast.Object, block []ast.Stmt) (refs []*ast.Ident) {
 	for _, s := range block {
 		written := writeVisitor{
 			tgt: obj,
@@ -146,7 +153,7 @@ func (v *writeVisitor) Visit(node ast.Node) ast.Visitor {
 
 type refVisitor struct {
 	tgt *ast.Object
-	refs []ast.Node
+	refs []*ast.Ident
 }
 
 func (v *refVisitor) Visit(node ast.Node) ast.Visitor {
@@ -158,7 +165,7 @@ func (v *refVisitor) Visit(node ast.Node) ast.Visitor {
 		return v
 	}
 	if id.Obj == v.tgt {
-		v.refs = append(v.refs, node)
+		v.refs = append(v.refs, id)
 	}
 	return v
 }
