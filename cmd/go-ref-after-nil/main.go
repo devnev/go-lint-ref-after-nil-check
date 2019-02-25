@@ -17,13 +17,16 @@ import (
 	"strings"
 )
 
-var verbose = flag.Bool("verbose", false, "If set, print every file as it is checked.")
-var machine = flag.Bool("machine", false, "If set, limit output to machine-readable file:line:col format.")
-var fix = flag.Bool("fix", false, `If set, replace bad references with "nil" in input files.`)
-var exit = flag.Bool("exit-code", false, "If set, exit with code 2 if there were failures. Exit 0 by default.")
+var opts struct {
+	verbose bool
+	machine bool
+	fix bool
+	exit bool
+	source int
+}
 
 func main() {
-	flag.Parse()
+	parseFlags()
 	var haveFails bool
 	for _, path := range flag.Args() {
 		inf, err := os.Stat(path)
@@ -60,20 +63,29 @@ func main() {
 			}
 		}
 	}
-	if *verbose {
+	if opts.verbose {
 		if haveFails {
 			log.Printf("Check failed on some inputs.")
 		} else {
 			log.Printf("Checks passed on all inputs.")
 		}
 	}
-	if haveFails && *exit {
+	if haveFails && opts.exit {
 		os.Exit(2)
 	}
 }
 
+func parseFlags() {
+	flag.BoolVar(&opts.verbose, "verbose", false, "If set, log every file as it is checked to stderr.")
+	flag.BoolVar(&opts.machine, "machine", false, "If set, limit output to machine-readable file:line:col format.")
+	flag.BoolVar(&opts.fix, "fix", false, `If set, replace bad references with "nil" in input files.`)
+	flag.BoolVar(&opts.exit, "exit-code", false, "If set, exit with code 2 if there were failures. Exit 0 by default.")
+	flag.IntVar(&opts.source, "source-context", 2, `If >= 0 (and -machine is unset), print the offending line of source code and given number of lines of context`)
+	flag.Parse()
+}
+
 func checkFile(fset *token.FileSet, file *ast.File) bool {
-	if *verbose {
+	if opts.verbose {
 		log.Printf("Checking %s", fset.Position(file.Pos()).Filename)
 	}
 
@@ -83,18 +95,20 @@ func checkFile(fset *token.FileSet, file *ast.File) bool {
 	lastFile, lastLine := "", -1
 	for _, fail := range fails {
 		pos := fset.Position(fail.Pos())
-		if *machine {
+		if opts.machine {
 			fmt.Println(pos.String())
 			continue
 		}
 		if lastFile == pos.Filename && lastLine == pos.Line {
 			continue
 		}
-		fmt.Printf("Reference after nil check at %s\n", pos.String())
-		printSource(pos)
+		fmt.Printf("Referenced identifier %s will always be nil at %s\n", fail.Name, pos.String())
+		if opts.source >= 0 {
+			printSource(pos, opts.source)
+		}
 	}
 
-	if *fix {
+	if opts.fix {
 		nilref.Fix(fails)
 		fname := fset.Position(file.Pos()).Filename
 		out, err := ioutil.TempFile(filepath.Dir(fname), filepath.Base(fname))
@@ -114,7 +128,7 @@ func checkFile(fset *token.FileSet, file *ast.File) bool {
 	return len(fails) > 0
 }
 
-func printSource(pos token.Position) {
+func printSource(pos token.Position, lines int) {
 	f, err := os.Open(pos.Filename)
 	if err != nil {
 		log.Printf("Failed to re-open source for %s: %s", pos.Filename, err.Error())
@@ -131,10 +145,15 @@ func printSource(pos token.Position) {
 		return
 	}
 	buf = buf[:n]
-	lineStart := strings.LastIndex(string(buf[:pos.Offset-start]), "\n")
-	lineEnd := strings.Index(string(buf[pos.Offset-start:]), "\n")
+	lineStart, lineEnd := pos.Offset-start, pos.Offset-start
+	for i := 0; i <= lines && lineStart >= 0; i++ {
+		lineStart = strings.LastIndex(string(buf[:lineStart]), "\n")
+	}
+	for i := 0; i <= lines && lineEnd >= 0; i++ {
+		lineEnd = lineEnd + 1 + strings.Index(string(buf[lineEnd+1:]), "\n")
+	}
 	if lineEnd > 0 {
-		buf = buf[:pos.Offset-start+lineEnd]
+		buf = buf[:lineEnd]
 	}
 	buf = buf[lineStart+1:]
 	fmt.Println(string(buf))

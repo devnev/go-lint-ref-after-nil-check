@@ -17,12 +17,22 @@ const (
 
 func TestCmd(t *testing.T) {
 	const expectedOutput = `
-Reference after nil check at ../../testdata/bad_conditional_print_nil_err.go:12:15
+Referenced identifier err will always be nil at ../../testdata/bad_conditional_print_nil_err.go:12:15
+	}
+	if !expected {
 		fmt.Println(err)
-Reference after nil check at ../../testdata/bad_print_nil_err.go:10:14
+	}
+}
+Referenced identifier err will always be nil at ../../testdata/bad_print_nil_err.go:10:14
+		return
+	}
 	fmt.Println(err)
-Reference after nil check at ../../testdata/bad_return_nil_err.go:8:9
+}
+Referenced identifier err will always be nil at ../../testdata/bad_return_nil_err.go:8:9
+		return err
+	}
 	return err
+}
 `
 	cmd := exec.Command("go", "run", "main.go", testdataPath)
 	out, err := cmd.CombinedOutput()
