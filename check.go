@@ -160,10 +160,20 @@ func (v *refVisitor) Visit(node ast.Node) ast.Visitor {
 	if node == nil {
 		return nil
 	}
-	id, ok := node.(*ast.Ident)
-	if !ok {
+
+	switch node.(type) {
+	case *ast.Ident:
+		break
+	case *ast.GoStmt, *ast.DeferStmt:
+		// Don't check `go` and `defer` statements. Later writes in the code may be executed before these statements'
+		// bodies. We may try and detect such cases in the future but for now we just bail out and assume references
+		// from a `go` or `defer` are valid.
+		return nil
+	default:
 		return v
 	}
+
+	id := node.(*ast.Ident)
 	if id.Obj == v.tgt {
 		v.refs = append(v.refs, id)
 	}
